@@ -100,6 +100,7 @@
         <button id="chooseMapBtn">Choose Local Map File</button>
         <button id="editWallsBtn" disabled>Edit Walls</button>
         <button id="playGameBtn" disabled>Play Game</button>
+        <button id="reAddFogBtn" disabled>Re-add Fog</button>
     </div>
 
     <div class="map-container" id="mapContainer" style="display: none;">
@@ -140,6 +141,7 @@
         const chooseMapBtn = document.getElementById('chooseMapBtn');
         const editWallsBtn = document.getElementById('editWallsBtn');
         const playGameBtn = document.getElementById('playGameBtn');
+        const reAddFogBtn = document.getElementById('reAddFogBtn');
         const mapContainer = document.getElementById('mapContainer');
         const mapImg = document.getElementById('mapImage');
         const status = document.getElementById('status');
@@ -158,6 +160,7 @@
             fileInput.addEventListener('change', handleMapUpload);
             editWallsBtn.addEventListener('click', toggleWallEditMode);
             playGameBtn.addEventListener('click', startPlayMode);
+            reAddFogBtn.addEventListener('click', reAddFog);
             
             // Canvas event listeners
             wallCanvas.addEventListener('click', handleWallCanvasClick);
@@ -209,6 +212,7 @@
                         setupCanvases();
                         editWallsBtn.disabled = false;
                         playGameBtn.disabled = false;
+                        reAddFogBtn.disabled = false;
                         updateStatus('Map loaded successfully. You can now edit walls or start playing.');
                         
                         // Reset game state
@@ -278,6 +282,7 @@
                 mapImg.classList.remove('interaction-disabled');
                 currentWall = null;
                 selectedVertex = null;
+                drawWalls(); // Redraw to show vertices again
                 updateStatus('Exited wall editing mode. Map is now in view mode.');
             } else {
                 // Enter wall editing mode
@@ -298,6 +303,9 @@
             mapImg.classList.add('interaction-disabled');
             currentWall = null;
             selectedVertex = null;
+            
+            // Redraw walls without vertices
+            drawWalls();
             
             // Initialize fog
             initializeFog();
@@ -382,6 +390,41 @@
                 baseFogCtx.clearRect(0, 0, baseFogCanvas.width, baseFogCanvas.height);
                 baseFogCtx.drawImage(fogCanvas, 0, 0);
             }
+        }
+        
+        function reAddFog() {
+            if (currentMode !== 'playGame') {
+                updateStatus('Re-add Fog only works in play mode.');
+                return;
+            }
+            
+            // Clear and refill the entire fog canvas
+            clearCanvas(fogCtx);
+            
+            const width = fogCanvas.width;
+            const height = fogCanvas.height;
+            
+            // Fill entire canvas with opaque fog
+            fogCtx.fillStyle = '#4a4a4a';
+            fogCtx.globalAlpha = 1.0;
+            fogCtx.fillRect(0, 0, width, height);
+            
+            // Clear areas around existing PCs only
+            playerCharacters.forEach(pc => {
+                clearFogAroundPosition(pc.x, pc.y, window.SIGHT_RADIUS * GRID_SIZE, true);
+            });
+            
+            // Update the base fog for animation
+            if (baseFogCanvas) {
+                const baseFogCtx = baseFogCanvas.getContext('2d');
+                baseFogCtx.clearRect(0, 0, baseFogCanvas.width, baseFogCanvas.height);
+                baseFogCtx.drawImage(fogCanvas, 0, 0);
+            }
+            
+            // Draw characters on top
+            drawCharacters();
+            
+            updateStatus('Fog has been reset! Only current PC sight areas remain clear.');
         }
         
         function clearFogAroundPosition(x, y, radius, permanent = true) {
@@ -780,10 +823,12 @@
                 
                 wallCtx.stroke();
                 
-                // Draw vertices
-                wall.vertices.forEach(vertex => {
-                    drawVertex(vertex, selectedVertex === vertex ? '#ffff00' : '#ff0000');
-                });
+                // Draw vertices only in edit mode
+                if (currentMode === 'editWalls') {
+                    wall.vertices.forEach(vertex => {
+                        drawVertex(vertex, selectedVertex === vertex ? '#ffff00' : '#ff0000');
+                    });
+                }
             });
             
             // Draw current wall being created
@@ -806,10 +851,12 @@
                 wallCtx.stroke();
                 wallCtx.setLineDash([]);
                 
-                // Draw vertices for current wall
-                currentWall.vertices.forEach(vertex => {
-                    drawVertex(vertex, '#ffaa00');
-                });
+                // Draw vertices for current wall only in edit mode
+                if (currentMode === 'editWalls') {
+                    currentWall.vertices.forEach(vertex => {
+                        drawVertex(vertex, '#ffaa00');
+                    });
+                }
             }
         }
         
