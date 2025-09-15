@@ -101,6 +101,7 @@
         <button id="editWallsBtn" disabled>Edit Walls</button>
         <button id="playGameBtn" disabled>Play Game</button>
         <button id="reAddFogBtn" disabled>Re-add Fog</button>
+        <button id="clearWallsBtn" disabled>Clear All Walls</button>
     </div>
 
     <div class="map-container" id="mapContainer" style="display: none;">
@@ -142,6 +143,7 @@
         const editWallsBtn = document.getElementById('editWallsBtn');
         const playGameBtn = document.getElementById('playGameBtn');
         const reAddFogBtn = document.getElementById('reAddFogBtn');
+        const clearWallsBtn = document.getElementById('clearWallsBtn');
         const mapContainer = document.getElementById('mapContainer');
         const mapImg = document.getElementById('mapImage');
         const status = document.getElementById('status');
@@ -155,12 +157,16 @@
             fogCanvas = document.getElementById('fogCanvas');
             fogCtx = fogCanvas.getContext('2d');
             
+            // Load saved walls from localStorage
+            loadWallsFromStorage();
+            
             // Event listeners
             chooseMapBtn.addEventListener('click', () => fileInput.click());
             fileInput.addEventListener('change', handleMapUpload);
             editWallsBtn.addEventListener('click', toggleWallEditMode);
             playGameBtn.addEventListener('click', startPlayMode);
             reAddFogBtn.addEventListener('click', reAddFog);
+            clearWallsBtn.addEventListener('click', clearAllWalls);
             
             // Canvas event listeners
             wallCanvas.addEventListener('click', handleWallCanvasClick);
@@ -213,10 +219,10 @@
                         editWallsBtn.disabled = false;
                         playGameBtn.disabled = false;
                         reAddFogBtn.disabled = false;
+                        clearWallsBtn.disabled = false;
                         updateStatus('Map loaded successfully. You can now edit walls or start playing.');
                         
-                        // Reset game state
-                        walls = [];
+                        // Reset game state (but keep saved walls)
                         currentWall = null;
                         playerCharacters = [];
                         npcs = [];
@@ -262,7 +268,14 @@
             
             clearCanvas(wallCtx);
             clearCanvas(fogCtx);
+            
+            // Draw any loaded walls
             drawWalls();
+            
+            // Show status about loaded walls
+            if (walls.length > 0) {
+                updateStatus(`Map loaded with ${walls.length} saved walls. You can edit walls or start playing.`);
+            }
         }
         
         function clearCanvas(ctx) {
@@ -271,6 +284,44 @@
         
         function updateStatus(message) {
             status.textContent = message;
+        }
+        
+        // localStorage functions
+        function saveWallsToStorage() {
+            try {
+                const wallData = {
+                    walls: walls,
+                    timestamp: Date.now()
+                };
+                localStorage.setItem('dndutil-walls', JSON.stringify(wallData));
+                console.log('Walls saved to localStorage');
+            } catch (error) {
+                console.error('Failed to save walls to localStorage:', error);
+            }
+        }
+        
+        function loadWallsFromStorage() {
+            try {
+                const savedData = localStorage.getItem('dndutil-walls');
+                if (savedData) {
+                    const wallData = JSON.parse(savedData);
+                    walls = wallData.walls || [];
+                    console.log('Loaded', walls.length, 'walls from localStorage');
+                    return true;
+                }
+            } catch (error) {
+                console.error('Failed to load walls from localStorage:', error);
+            }
+            return false;
+        }
+        
+        function clearWallsFromStorage() {
+            try {
+                localStorage.removeItem('dndutil-walls');
+                console.log('Cleared walls from localStorage');
+            } catch (error) {
+                console.error('Failed to clear walls from localStorage:', error);
+            }
         }
         
         function toggleWallEditMode() {
@@ -427,6 +478,19 @@
             updateStatus('Fog has been reset! Only current PC sight areas remain clear.');
         }
         
+        function clearAllWalls() {
+            if (confirm('Are you sure you want to clear all walls? This cannot be undone.')) {
+                walls = [];
+                currentWall = null;
+                selectedVertex = null;
+                
+                clearWallsFromStorage();
+                drawWalls(); // This will clear the canvas since walls array is empty
+                
+                updateStatus('All walls have been cleared and removed from storage.');
+            }
+        }
+        
         function clearFogAroundPosition(x, y, radius, permanent = true) {
             if (!permanent) {
                 // Temporary clear for preview
@@ -526,6 +590,7 @@
                 walls.push(currentWall);
                 currentWall = null;
                 drawWalls();
+                saveWallsToStorage(); // Save after completing a wall
                 updateStatus('Wall completed. Click to start a new wall.');
             }
         }
@@ -577,6 +642,7 @@
                 isDragging = false;
                 dragOffset = { x: 0, y: 0 };
                 wallCanvas.style.cursor = 'crosshair';
+                saveWallsToStorage(); // Save after moving a vertex
                 updateStatus('Vertex moved. Click to select another vertex or continue adding walls.');
             }
         }
@@ -794,6 +860,7 @@
                     
                     selectedVertex = null;
                     drawWalls();
+                    saveWallsToStorage(); // Save after deleting a wall
                     updateStatus('Wall deleted. Continue editing or click to start a new wall.');
                 }
                 event.preventDefault();
