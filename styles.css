@@ -124,3 +124,102 @@ button:disabled {
     cursor: pointer;
     border: none;
 }
+
+.mode-toggle-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.toggle-switch {
+    position: relative;
+    width: 120px;
+    height: 40px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.toggle-switch.disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+.toggle-track {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    background-color: #333;
+    border-radius: 20px;
+    border: 2px solid #555;
+    overflow: hidden;
+}
+
+.toggle-option {
+    position: absolute;
+    width: 50%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #ccc;
+    transition: color 0.3s ease;
+    z-index: 2;
+}
+
+.left-option {
+    left: 0;
+}
+
+.right-option {
+    right: 0;
+}
+
+.toggle-slider {
+    position: absolute;
+    width: 50%;
+    height: 100%;
+    background: linear-gradient(135deg, #ff8c00, #e07b00);
+    border-radius: 18px;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 1;
+    transform: translateX(0);
+}
+
+.toggle-switch.play-mode .toggle-slider {
+    background: linear-gradient(135deg, #4CAF50, #45a049);
+    transform: translateX(100%);
+}
+
+.toggle-switch.edit-mode .left-option,
+.toggle-switch.play-mode .right-option {
+    color: white;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+
+.toggle-switch:hover .toggle-slider {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+.toggle-switch.disabled:hover .toggle-slider {
+    box-shadow: none;
+}
+
+.play-mode-only {
+    display: none;
+}
+
+.play-mode .play-mode-only {
+    display: inline-block;
+}
+
+.edit-mode-only {
+    display: none;
+}
+
+.edit-mode .edit-mode-only {
+    display: inline-block;
+}

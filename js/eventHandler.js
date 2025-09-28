@@ -10,8 +10,7 @@ class EventHandler {
 
         // Bind methods to preserve 'this' context
         this.handleMapUpload = this.handleMapUpload.bind(this);
-        this.toggleWallEditMode = this.toggleWallEditMode.bind(this);
-        this.startPlayMode = this.startPlayMode.bind(this);
+        this.handleModeToggle = this.handleModeToggle.bind(this);
         this.reAddFog = this.reAddFog.bind(this);
         this.clearAllWalls = this.clearAllWalls.bind(this);
         this.handleWallCanvasClick = this.handleWallCanvasClick.bind(this);
@@ -32,8 +31,7 @@ class EventHandler {
         // Get DOM elements
         const fileInput = document.getElementById('fileInput');
         const chooseMapBtn = document.getElementById('chooseMapBtn');
-        const editWallsBtn = document.getElementById('editWallsBtn');
-        const playGameBtn = document.getElementById('playGameBtn');
+        const modeToggleSwitch = document.getElementById('modeToggleSwitch');
         const reAddFogBtn = document.getElementById('reAddFogBtn');
         const clearWallsBtn = document.getElementById('clearWallsBtn');
         const sightRadiusSlider = document.getElementById('sightRadiusSlider');
@@ -57,8 +55,7 @@ class EventHandler {
         // Button event listeners
         chooseMapBtn.addEventListener('click', () => fileInput.click());
         fileInput.addEventListener('change', this.handleMapUpload);
-        editWallsBtn.addEventListener('click', this.toggleWallEditMode);
-        playGameBtn.addEventListener('click', this.startPlayMode);
+        modeToggleSwitch.addEventListener('click', this.handleModeToggle.bind(this));
         reAddFogBtn.addEventListener('click', this.reAddFog);
         clearWallsBtn.addEventListener('click', this.clearAllWalls);
         sightRadiusSlider.addEventListener('input', this.handleSightRadiusChange.bind(this));
@@ -113,26 +110,20 @@ class EventHandler {
                 setTimeout(() => {
                     const success = this.renderer.setupCanvases(this.gameState, this.gameState.mapImage);
                     if (success) {
-                        // Enable buttons
-                        document.getElementById('editWallsBtn').disabled = false;
-                        document.getElementById('playGameBtn').disabled = false;
-                        document.getElementById('reAddFogBtn').disabled = false;
-                        document.getElementById('clearWallsBtn').disabled = false;
-
-                        this.updateStatus('Map loaded successfully. You can now edit walls or start playing.');
+                        // Enable toggle switch
+                        document.getElementById('modeToggleSwitch').classList.remove('disabled');
 
                         // Reset game state (but keep saved walls)
                         this.gameState.resetGameState();
 
-                        // Update button states
-                        document.getElementById('editWallsBtn').textContent = 'Edit Walls';
-                        this.gameState.wallCanvas.classList.remove('editing');
-                        this.gameState.fogCanvas.classList.remove('playing');
-                        this.gameState.mapImage.classList.remove('interaction-disabled');
+                        // Start in Edit Mode automatically
+                        this.setMode('editWalls');
 
                         // Show status about loaded walls
                         if (this.gameState.walls.length > 0) {
-                            this.updateStatus(`Map loaded with ${this.gameState.walls.length} saved walls. You can edit walls or start playing.`);
+                            this.updateStatus(`Map loaded with ${this.gameState.walls.length} saved walls. Currently in Edit Mode.`);
+                        } else {
+                            this.updateStatus('Map loaded successfully. Currently in Edit Mode - click to place wall vertices.');
                         }
                     }
                 }, 0);
@@ -141,45 +132,79 @@ class EventHandler {
         reader.readAsDataURL(file);
     }
 
-    toggleWallEditMode() {
+    handleModeToggle() {
+        // Check if disabled
+        const toggleSwitch = document.getElementById('modeToggleSwitch');
+        if (toggleSwitch.classList.contains('disabled')) {
+            return;
+        }
+
         if (this.gameState.currentMode === 'editWalls') {
-            // Exit wall editing mode
-            this.gameState.setMode('view');
-            document.getElementById('editWallsBtn').textContent = 'Edit Walls';
-            this.gameState.wallCanvas.classList.remove('editing');
-            this.gameState.mapImage.classList.remove('interaction-disabled');
-            this.gameState.currentWall = null;
-            this.gameState.selectedVertex = null;
-            this.renderer.drawWalls(this.gameState);
-            this.updateStatus('Exited wall editing mode. Map is now in view mode.');
+            this.setMode('playGame');
         } else {
-            // Enter wall editing mode
-            this.gameState.setMode('editWalls');
-            document.getElementById('editWallsBtn').textContent = 'Stop Editing Walls';
-            this.gameState.wallCanvas.classList.add('editing');
-            this.gameState.fogCanvas.classList.remove('playing');
-            this.gameState.mapImage.classList.add('interaction-disabled');
-            this.updateStatus('Wall editing mode - click to place vertices, double-click to finish wall, click vertex + delete to remove wall');
+            this.setMode('editWalls');
         }
     }
 
-    startPlayMode() {
-        this.gameState.setMode('playGame');
-        document.getElementById('editWallsBtn').textContent = 'Edit Walls';
-        this.gameState.wallCanvas.classList.remove('editing');
-        this.gameState.fogCanvas.classList.add('playing');
-        this.gameState.mapImage.classList.add('interaction-disabled');
-        this.gameState.currentWall = null;
-        this.gameState.selectedVertex = null;
+    setMode(mode) {
+        this.gameState.setMode(mode);
 
-        // Redraw walls without vertices
-        this.renderer.drawWalls(this.gameState);
+        // Update UI elements
+        this.updateModeUI();
 
-        // Initialize fog
-        this.renderer.initializeFog(this.gameState);
-        this.renderer.startFogAnimation(this.gameState);
+        if (mode === 'editWalls') {
+            // Enter wall editing mode
+            this.gameState.wallCanvas.classList.add('editing');
+            this.gameState.fogCanvas.classList.remove('playing');
+            this.gameState.mapImage.classList.add('interaction-disabled');
+            this.gameState.currentWall = null;
+            this.gameState.selectedVertex = null;
 
-        this.updateStatus('Play mode - click to spawn/move PCs, double-click for new PC, triple-click for NPC');
+            // Redraw walls to show vertices
+            this.renderer.drawWalls(this.gameState);
+
+            this.updateStatus('Edit Mode - click to place vertices, double-click to finish wall, click vertex + delete to remove wall');
+        } else if (mode === 'playGame') {
+            // Enter play mode
+            this.gameState.wallCanvas.classList.remove('editing');
+            this.gameState.fogCanvas.classList.add('playing');
+            this.gameState.mapImage.classList.add('interaction-disabled');
+            this.gameState.currentWall = null;
+            this.gameState.selectedVertex = null;
+
+            // Redraw walls without vertices
+            this.renderer.drawWalls(this.gameState);
+
+            // Initialize fog
+            this.renderer.initializeFog(this.gameState);
+            this.renderer.startFogAnimation(this.gameState);
+
+            this.updateStatus('Play Mode - click to spawn/move PCs, double-click for new PC, triple-click for NPC');
+        }
+    }
+
+    updateModeUI() {
+        const toggleSwitch = document.getElementById('modeToggleSwitch');
+        const controlsDiv = document.querySelector('.controls');
+        const reAddFogBtn = document.getElementById('reAddFogBtn');
+        const clearWallsBtn = document.getElementById('clearWallsBtn');
+
+        // Update toggle switch
+        toggleSwitch.className = 'toggle-switch';
+
+        if (this.gameState.currentMode === 'editWalls') {
+            toggleSwitch.classList.add('edit-mode');
+            controlsDiv.classList.remove('play-mode');
+            controlsDiv.classList.add('edit-mode');
+            reAddFogBtn.disabled = true;
+            clearWallsBtn.disabled = false;
+        } else if (this.gameState.currentMode === 'playGame') {
+            toggleSwitch.classList.add('play-mode');
+            controlsDiv.classList.remove('edit-mode');
+            controlsDiv.classList.add('play-mode');
+            reAddFogBtn.disabled = false;
+            clearWallsBtn.disabled = true;
+        }
     }
 
     reAddFog() {
@@ -479,10 +504,8 @@ class EventHandler {
 
         // If we're in play mode and have PCs, update their line of sight immediately
         if (this.gameState.currentMode === 'playGame' && this.gameState.playerCharacters.length > 0) {
-            // Only clear fog around each PC with the new radius (preserving explored areas)
-            this.gameState.playerCharacters.forEach(pc => {
-                this.renderer.clearFogAroundPosition(this.gameState, pc.x, pc.y, newRadius * this.gameState.GRID_SIZE, true);
-            });
+            // Refresh the base fog to show all PCs with the new radius
+            this.renderer.refreshBaseFogWithAllPCs(this.gameState);
 
             // Redraw characters
             this.renderer.drawCharacters(this.gameState);

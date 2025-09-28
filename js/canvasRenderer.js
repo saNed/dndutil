@@ -206,6 +206,9 @@ class CanvasRenderer {
         const baseFogCtx = this.baseFogCanvas.getContext('2d');
         baseFogCtx.drawImage(gameState.fogCanvas, 0, 0);
 
+        // Ensure base fog includes all current PC positions
+        this.refreshBaseFogWithAllPCs(gameState);
+
         const animateFog = () => {
             if (gameState.currentMode === 'playGame') {
                 // Restore base fog
@@ -228,6 +231,11 @@ class CanvasRenderer {
                 gameState.fogCtx.fillRect(0, 0, gameState.fogCanvas.width, gameState.fogCanvas.height);
                 gameState.fogCtx.restore();
 
+                // Keep all current PC positions clear (temporary clear each frame)
+                gameState.playerCharacters.forEach(pc => {
+                    this.clearFogAroundPosition(gameState, pc.x, pc.y, gameState.SIGHT_RADIUS * gameState.GRID_SIZE, false);
+                });
+
                 // Redraw characters on top
                 this.drawCharacters(gameState);
 
@@ -247,19 +255,60 @@ class CanvasRenderer {
         }
     }
 
-    clearFogAroundPosition(gameState, x, y, radius, permanent = true) {
-        if (!permanent) {
-            // Temporary clear for preview
-            gameState.fogCtx.save();
-            gameState.fogCtx.globalCompositeOperation = 'destination-out';
-            gameState.fogCtx.beginPath();
-            gameState.fogCtx.arc(x, y, radius, 0, 2 * Math.PI);
-            gameState.fogCtx.fill();
-            gameState.fogCtx.restore();
-            return;
-        }
+    refreshBaseFogWithAllPCs(gameState) {
+        // Refresh the base fog to show current line of sight for all PCs
+        if (this.baseFogCanvas && gameState.currentMode === 'playGame') {
+            // Copy current fog state to base
+            const baseFogCtx = this.baseFogCanvas.getContext('2d');
+            baseFogCtx.clearRect(0, 0, this.baseFogCanvas.width, this.baseFogCanvas.height);
+            baseFogCtx.drawImage(gameState.fogCanvas, 0, 0);
 
-        // Permanent clear with line-of-sight calculation
+            // Clear fog around all current PC positions in the base fog
+            gameState.playerCharacters.forEach(pc => {
+                this.clearFogAroundPositionInCanvas(baseFogCtx, gameState, pc.x, pc.y, gameState.SIGHT_RADIUS * gameState.GRID_SIZE);
+            });
+        }
+    }
+
+    clearFogAroundPositionInCanvas(ctx, gameState, x, y, radius) {
+        // Clear fog with line-of-sight calculation in a specific canvas context
+        const clearedPixels = new Set();
+
+        // Cast rays in all directions
+        const rayCount = 360;
+        for (let angle = 0; angle < rayCount; angle++) {
+            const radians = (angle * Math.PI) / 180;
+            const dx = Math.cos(radians);
+            const dy = Math.sin(radians);
+
+            // Cast ray until it hits a wall or reaches max distance
+            for (let distance = 0; distance <= radius; distance += 1) {
+                const rayX = x + dx * distance;
+                const rayY = y + dy * distance;
+
+                // Check if ray hits a wall
+                if (this.geometryUtils.isPositionBlockedByWall(gameState.walls, x, y, rayX, rayY)) {
+                    break;
+                }
+
+                // Clear fog at this position
+                const pixelKey = `${Math.floor(rayX)},${Math.floor(rayY)}`;
+                if (!clearedPixels.has(pixelKey)) {
+                    clearedPixels.add(pixelKey);
+
+                    ctx.save();
+                    ctx.globalCompositeOperation = 'destination-out';
+                    ctx.beginPath();
+                    ctx.arc(rayX, rayY, 2, 0, 2 * Math.PI);
+                    ctx.fill();
+                    ctx.restore();
+                }
+            }
+        }
+    }
+
+    clearFogAroundPosition(gameState, x, y, radius, permanent = true) {
+        // Line-of-sight calculation (same for both permanent and temporary)
         const clearedPixels = new Set();
 
         // Cast rays in all directions

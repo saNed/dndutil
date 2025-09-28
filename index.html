@@ -12,10 +12,19 @@
     <div class="controls">
         <input type="file" id="fileInput" accept="image/*">
         <button id="chooseMapBtn">Choose Local Map File</button>
-        <button id="editWallsBtn" disabled>Edit Walls</button>
-        <button id="playGameBtn" disabled>Play Game</button>
-        <button id="reAddFogBtn" disabled>Re-add Fog</button>
-        <button id="clearWallsBtn" disabled>Clear All Walls</button>
+
+        <div class="mode-toggle-container">
+            <div class="toggle-switch disabled" id="modeToggleSwitch">
+                <div class="toggle-track" id="toggleTrack">
+                    <div class="toggle-option left-option" id="editOption">Edit</div>
+                    <div class="toggle-option right-option" id="playOption">Play</div>
+                    <div class="toggle-slider" id="toggleSlider"></div>
+                </div>
+            </div>
+        </div>
+
+        <button id="reAddFogBtn" class="play-mode-only" disabled>Re-add Fog</button>
+        <button id="clearWallsBtn" class="edit-mode-only" disabled>Clear All Walls</button>
 
         <div class="sight-radius-control">
             <label for="sightRadiusSlider">Sight Radius: <span id="sightRadiusValue">6</span> feet</label>
