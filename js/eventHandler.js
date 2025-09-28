@@ -36,6 +36,7 @@ class EventHandler {
         const playGameBtn = document.getElementById('playGameBtn');
         const reAddFogBtn = document.getElementById('reAddFogBtn');
         const clearWallsBtn = document.getElementById('clearWallsBtn');
+        const sightRadiusSlider = document.getElementById('sightRadiusSlider');
 
         // Initialize canvas references
         const canvasRefs = this.renderer.init();
@@ -60,9 +61,13 @@ class EventHandler {
         playGameBtn.addEventListener('click', this.startPlayMode);
         reAddFogBtn.addEventListener('click', this.reAddFog);
         clearWallsBtn.addEventListener('click', this.clearAllWalls);
+        sightRadiusSlider.addEventListener('input', this.handleSightRadiusChange.bind(this));
 
         // Keyboard events
         document.addEventListener('keydown', this.handleKeyDown);
+
+        // Window resize events
+        window.addEventListener('resize', this.handleWindowResize.bind(this));
     }
 
     setupCanvasEventListeners() {
@@ -340,7 +345,6 @@ class EventHandler {
 
     handleDoubleClick(x, y) {
         // Create new PC
-        this.gameState.updateSightRadius(); // Update from global window value
         const newPC = {
             x: x,
             y: y,
@@ -410,7 +414,6 @@ class EventHandler {
         this.gameState.selectedPC.y = y;
 
         // Clear fog around PC as it moves
-        this.gameState.updateSightRadius(); // Update from global window value
         this.renderer.clearFogAroundPosition(this.gameState, x, y, this.gameState.SIGHT_RADIUS * this.gameState.GRID_SIZE, true);
 
         this.renderer.drawCharacters(this.gameState);
@@ -461,5 +464,123 @@ class EventHandler {
             }
             event.preventDefault();
         }
+    }
+
+    handleSightRadiusChange(event) {
+        const newRadius = parseInt(event.target.value);
+        this.gameState.SIGHT_RADIUS = newRadius;
+        window.SIGHT_RADIUS = newRadius; // Update global for backwards compatibility
+
+        // Update the display value
+        const sightRadiusValue = document.getElementById('sightRadiusValue');
+        if (sightRadiusValue) {
+            sightRadiusValue.textContent = newRadius;
+        }
+
+        // If we're in play mode and have PCs, update their line of sight immediately
+        if (this.gameState.currentMode === 'playGame' && this.gameState.playerCharacters.length > 0) {
+            // Only clear fog around each PC with the new radius (preserving explored areas)
+            this.gameState.playerCharacters.forEach(pc => {
+                this.renderer.clearFogAroundPosition(this.gameState, pc.x, pc.y, newRadius * this.gameState.GRID_SIZE, true);
+            });
+
+            // Redraw characters
+            this.renderer.drawCharacters(this.gameState);
+        }
+
+        this.updateStatus(`Sight radius updated to ${newRadius} feet.`);
+    }
+
+    handleWindowResize() {
+        // Debounce resize events to avoid excessive calls
+        if (this.resizeTimeout) {
+            clearTimeout(this.resizeTimeout);
+        }
+
+        this.resizeTimeout = setTimeout(() => {
+            this.resizeCanvases();
+        }, 100);
+    }
+
+    resizeCanvases() {
+        // Only resize if we have a map loaded
+        if (!this.gameState.mapImage || !this.gameState.mapImage.src) {
+            return;
+        }
+
+        // Get the current canvas dimensions
+        const oldWidth = this.gameState.wallCanvas.width;
+        const oldHeight = this.gameState.wallCanvas.height;
+
+        // Get the new image dimensions
+        const newWidth = this.gameState.mapImage.offsetWidth;
+        const newHeight = this.gameState.mapImage.offsetHeight;
+
+        // If dimensions haven't changed, nothing to do
+        if (oldWidth === newWidth && oldHeight === newHeight) {
+            return;
+        }
+
+        // Calculate scaling factors
+        const scaleX = newWidth / oldWidth;
+        const scaleY = newHeight / oldHeight;
+
+        // Resize canvases
+        this.gameState.wallCanvas.width = newWidth;
+        this.gameState.wallCanvas.height = newHeight;
+        this.gameState.fogCanvas.width = newWidth;
+        this.gameState.fogCanvas.height = newHeight;
+
+        // Update grid size
+        this.gameState.calculateGridSize(newWidth, newHeight);
+
+        // Scale all wall coordinates
+        this.scaleWalls(scaleX, scaleY);
+
+        // Scale all character positions
+        this.scaleCharacters(scaleX, scaleY);
+
+        // Redraw everything
+        this.renderer.drawWalls(this.gameState);
+
+        // If in play mode, reinitialize fog and redraw
+        if (this.gameState.currentMode === 'playGame') {
+            this.renderer.initializeFog(this.gameState);
+            this.renderer.startFogAnimation(this.gameState);
+        }
+
+        console.log(`Canvas resized from ${oldWidth}x${oldHeight} to ${newWidth}x${newHeight}`);
+    }
+
+    scaleWalls(scaleX, scaleY) {
+        // Scale completed walls
+        this.gameState.walls.forEach(wall => {
+            wall.vertices.forEach(vertex => {
+                vertex.x *= scaleX;
+                vertex.y *= scaleY;
+            });
+        });
+
+        // Scale current wall being created
+        if (this.gameState.currentWall) {
+            this.gameState.currentWall.vertices.forEach(vertex => {
+                vertex.x *= scaleX;
+                vertex.y *= scaleY;
+            });
+        }
+    }
+
+    scaleCharacters(scaleX, scaleY) {
+        // Scale player characters
+        this.gameState.playerCharacters.forEach(pc => {
+            pc.x *= scaleX;
+            pc.y *= scaleY;
+        });
+
+        // Scale NPCs
+        this.gameState.npcs.forEach(npc => {
+            npc.x *= scaleX;
+            npc.y *= scaleY;
+        });
     }
 }

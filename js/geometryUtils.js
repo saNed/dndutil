@@ -33,19 +33,4 @@ class GeometryUtils {
         // Check if intersection point is within both line segments
         return t >= 0 && t <= 1 && u >= 0 && u <= 1;
     }
-
-    calculateDistance(x1, y1, x2, y2) {
-        return Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
-    }
-
-    pointInCircle(px, py, cx, cy, radius) {
-        return this.calculateDistance(px, py, cx, cy) <= radius;
-    }
-
-    clampToCanvas(x, y, canvasWidth, canvasHeight) {
-        return {
-            x: Math.max(0, Math.min(x, canvasWidth)),
-            y: Math.max(0, Math.min(y, canvasHeight))
-        };
-    }
 }

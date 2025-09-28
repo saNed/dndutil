@@ -16,6 +16,11 @@
         <button id="playGameBtn" disabled>Play Game</button>
         <button id="reAddFogBtn" disabled>Re-add Fog</button>
         <button id="clearWallsBtn" disabled>Clear All Walls</button>
+
+        <div class="sight-radius-control">
+            <label for="sightRadiusSlider">Sight Radius: <span id="sightRadiusValue">6</span> feet</label>
+            <input type="range" id="sightRadiusSlider" min="1" max="60" value="6" step="1">
+        </div>
     </div>
 
     <div class="map-container" id="mapContainer" style="display: none;">

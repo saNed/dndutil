@@ -122,12 +122,6 @@ class GameState {
         return null;
     }
 
-    updateSightRadius() {
-        // Update from global window value if changed via console
-        if (window.SIGHT_RADIUS !== undefined) {
-            this.SIGHT_RADIUS = window.SIGHT_RADIUS;
-        }
-    }
 
     setCanvasReferences(wallCanvas, wallCtx, fogCanvas, fogCtx, mapImage) {
         this.wallCanvas = wallCanvas;
